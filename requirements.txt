@@ -1,6 +1,9 @@
 openai
 langchain
-pinecone-client
+langchain-community
+langchainhub
+chromadb
+bs4
 python-dotenv
 tiktoken
 docx2txt
