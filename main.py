@@ -32,8 +32,8 @@ def chat_actions():
         {"role": "user", "content": st.session_state["Chat_input-chatbot"]},
     )
     try:
+        
         prompt = st.session_state["Chat_input-chatbot"]
-        print(prompt)
         chain = RetrievalQA.from_chain_type(
             llm=OpenAI(),
             chain_type="stuff",
@@ -51,8 +51,8 @@ def chat_actions():
     except ValueError as e:
         if "special characters" in str(e):
             st.error(
-                f"Prompt contains special characters not allowed by TikToken. "
-                f"Please remove those characters or try adjusting TikToken configuration. "
+                f"Prompt contains special characters not allowed by TikToken."
+                f"Please remove those characters or try adjusting TikToken configuration."
             )
         else:
             raise 
