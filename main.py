@@ -19,12 +19,13 @@ from langchain.chains import create_retrieval_chain
 from langchain.chains import create_history_aware_retriever
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 import csv
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 import pandas as pd
+from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain.chains.query_constructor.base import AttributeInfo
 
 llm = Ollama(model="llama2")
 
@@ -83,8 +84,188 @@ if uploaded_file:
         " Resolved At",
     ]
 
+    metadata_field_info = [
+        AttributeInfo(
+            name="Number",
+            description="Identifier of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Incident State",
+            description="State of the incident (e.g., open, closed)",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Active",
+            description="Indicator of whether the incident is active or not",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Reassignment Count",
+            description="Number of times the incident has been reassigned",
+            type="integer",
+        ),
+        AttributeInfo(
+            name="Reopen Count",
+            description="Number of times the incident has been reopened",
+            type="integer",
+        ),
+        AttributeInfo(
+            name="Sys Mod Count",
+            description="System modification count",
+            type="integer",
+        ),
+        AttributeInfo(
+            name="Made SLA",
+            description="Indicator of whether the incident was made SLA (Service Level Agreement)",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Caller ID",
+            description="Identifier of the caller",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Opened By",
+            description="Identifier of the user who opened the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Opened At",
+            description="Timestamp when the incident was opened",
+            type="datetime",
+        ),
+        AttributeInfo(
+            name="Sys Created By",
+            description="Identifier of the system user who created the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Sys Created At",
+            description="Timestamp when the incident was created by the system",
+            type="datetime",
+        ),
+        AttributeInfo(
+            name="Sys Updated By",
+            description="Identifier of the system user who last updated the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Sys Updated At",
+            description="Timestamp when the incident was last updated by the system",
+            type="datetime",
+        ),
+        AttributeInfo(
+            name="Contact Type",
+            description="Type of contact for the incident (e.g., email, phone)",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Location",
+            description="Location of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Category",
+            description="Category of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Subcategory",
+            description="Subcategory of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="U Symptom",
+            description="Symptom of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="CMDB CI",
+            description="Configuration Management Database CI (Configuration Item)",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Impact",
+            description="Impact of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Urgency",
+            description="Urgency of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Priority",
+            description="Priority of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Assignment Group",
+            description="Group assigned to handle the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Assigned To",
+            description="Person assigned to handle the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Knowledge",
+            description="Indicator of whether the incident has knowledge",
+            type="string",
+        ),
+        AttributeInfo(
+            name="U Priority Confirmation",
+            description="Confirmation of the priority of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Notify",
+            description="Notification details for the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Problem ID",
+            description="Identifier of the problem associated with the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="RFC",
+            description="Request for Change associated with the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Vendor",
+            description="Vendor associated with the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Caused By",
+            description="Cause of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Closed Code",
+            description="Code indicating the closure of the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Resolved By",
+            description="Person who resolved the incident",
+            type="string",
+        ),
+        AttributeInfo(
+            name="Resolved At",
+            description="Timestamp when the incident was resolved",
+            type="datetime",
+        ),
+    ]
+
+    document_content_description = "IT Incidents info"
+
     docs = []
-    df = pd.read_csv(uploaded_file,sep =";")
+    df = pd.read_csv(uploaded_file, sep=";")
     for index, row in df.iterrows():
         to_metadata = {col: row[col] for col in columns_to_metadata if col in row}
         values_to_embed = {k: row[k] for k in columns_to_embed if k in row}
@@ -122,9 +303,16 @@ def chat_actions():
         retriever = vectorstore.as_retriever(
             search_type="similarity", search_kwargs={"k": 4}
         )
+        # retriever = SelfQueryRetriever.from_llm(
+        #     llm,
+        #     vectorstore,
+        #     document_content_description,
+        #     metadata_field_info,
+        #     verbose=True,
+        # )
         prompt = hub.pull("rlm/rag-prompt")
         rag_chain = (
-            {"context": retriever | format_docs, "question": RunnablePassthrough()}
+            {"context": retriever, "question": RunnablePassthrough()}
             | prompt
             | llm
             | StrOutputParser()
